@@ -12,204 +12,204 @@
 #-*
 #-*
 #Z* -------------------------------------------------------------------
-name: Build app packages
-
-on:
-  push:
-    branches:
-      - master
-      - main
-
-jobs:
-  # ----- Windows build section
-  build-windows:
-    strategy:
-      fail-fast: false
-      matrix:
-        win_arch: ['x86', 'x64']
-    runs-on: windows-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Setup Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Create virtual environment
-        run: |
-          python -m venv .venv
-          call .venv\Scripts\activate.bat
-          python -m pip install --upgrade setuptools pip build 
-          python -m pip install -r ./os_specific/windows/requirements.txt
-        shell: cmd
-
-      - name: Download Inno Setup installer
-        run: |
-          Invoke-WebRequest -Uri https://files.jrsoftware.org/is/6/innosetup-6.4.2.exe -OutFile inno-setup.exe
-
-      - name: Install Inno Setup
-        run: |
-          .\inno-setup.exe /SILENT
-
-      - name: Add Inno Setup to PATH
-        run: |
-          $env:PATH += ";C:\Program Files (x86)\Inno Setup 6"
-
-      - name: Build frozen Python application
-        run: |
-          .\win_automator.bat build app
-          .\win_automator.bat build inno_setup_ci
-
-        shell: powershell
-
-      - name: Compile .iss file
-        run: |
-          iscc os_specific/windows/inno_setup/setup_${{ matrix.win_arch }}.iss
-
-      - name: Create portable installation
-        run: |
-          Compress-Archive -Path ./dist/exe.win-amd64-3.11/* -DestinationPath ./os_specific/dist/PyMOL_Open_source_v3.1.0.4+1_${{ matrix.win_arch }}_portable.zip
-        shell: powershell
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Open-Source-PyMOL-Windows-${{ matrix.win_arch }}-Setup
-          path: ./os_specific/dist/*
-  # --- end
-
-  # ----- macOS build section
-  build-macos:
-    strategy:
-      fail-fast: false
-      matrix:
-        # macos-13 is unsupported due to a bug in the `create-dmg` action
-        os: [ macos-14 ]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Setup Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Create virtual environment
-        run: |
-          python -m venv .venv
-          source .venv/bin/activate
-          python -m pip install wheel setuptools 
-          python -m pip install -r ./os_specific/macos/requirements.txt
-
-      - name: Build app package
-        run: |
-          chmod +x ./automator.sh 
-          ./automator.sh build app
-
-      - name: Rename app package
-        run: mv os_specific/macos/build/open_source_pymol-3.1.0.4+1.app dist/Open-Source-PyMOL-3.1.0.4+1.app
-
-      - name: Ensure no other process is using the DMG
-        run: |
-          hdiutil detach /Volumes/Open-Source-PyMOL || true
-
-      - name: Build DMG with retry
-        uses: urban233/create-dmg-actions@v0.0.2
-        with:
-          dmg_name: 'Open-Source-PyMOL'
-          src_dir: 'dist/Open-Source-PyMOL-3.1.0.4+1.app'
-          bg_filepath: 'os_specific/macos/dmg/bg.png'
-        env:
-          RETRIES: 3
-          RETRY_DELAY: 10
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Open-Source-PyMOL-macOS-${{ matrix.os }}-Setup
-          path: ./*.dmg
-  # --- end
-
-  # ----- GNU Linux build section
-  build-gnu-linux:
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Setup Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Create virtual environment
-        run: |
-          python -m venv .venv
-          source .venv/bin/activate
-          python -m pip install wheel setuptools 
-          python -m pip install -r ./os_specific/linux/requirements.txt
-
-      - name: Build app package
-        run: |
-          chmod +x ./automator.sh 
-          ./automator.sh build app
-
-      - name: Build tar.gz portable installation
-        run: |
-          mkdir -p packaged/build/Open-Source-PyMOL-3.1.0.4+1
-          cp -r ./dist/exe.linux*/* packaged/build/Open-Source-PyMOL-3.1.0.4+1/
-          mkdir -p packaged/bin
-          tar czvf packaged/bin/Open-Source-PyMOL-3.1.0.4+1.tar.gz packaged/build/Open-Source-PyMOL-3.1.0.4+1 
-          rm -r packaged/build
-
-      - name: Prepare packaging environment
-        run: |
-          sudo apt install rpm -y
-          sudo gem install fpm
-          mkdir -p package-root/opt/Open-Source-PyMOL-3.1.0.4+1
-          cp -r ./dist/exe.linux*/* package-root/opt/Open-Source-PyMOL-3.1.0.4+1/
-          mkdir -p package-root/usr/bin
-          ln -s /opt/Open-Source-PyMOL-3.1.0.4+1/Open-Source-PyMOL package-root/usr/bin/Open-Source-PyMOL
-          mkdir -p package-root/usr/share/applications
-          cp os_specific/linux/open-source-pymol.desktop package-root/usr/share/applications
-
-      - name: Build .deb package
-        run: |
-          fpm -s dir -t deb \
-          -n open-source-pymol \
-          -v 3.1.0.4+1 \
-          -a amd64 \
-          -C package-root \
-          --description "PyMOL installation for debian-based distros" \
-          --license "BSD-3-Clause" \
-          --maintainer "Martin Urban <martin.urban@studmail.w-hs.de>" 
-
-      - name: Build .rpm package
-        run: |
-          fpm -s dir -t rpm \
-          -n open-source-pymol \
-          -v 3.1.0.4+1 \
-          -a amd64 \
-          -C package-root \
-          --description "PyMOL installation for red-hat-based distros" \
-          --license "BSD-3-Clause" \
-          --maintainer "Martin Urban <martin.urban@studmail.w-hs.de>" 
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Open-Source-PyMOL-GNU-Linux-x86_64-Setup
-          path: |
-            packaged/bin/*.tar.gz
-            *.deb
-            *.rpm
-  # --- end
+#name: Build app packages
+#
+#on:
+#  push:
+#    branches:
+#      - master
+#      - main
+#
+#jobs:
+#  # ----- Windows build section
+#  build-windows:
+#    strategy:
+#      fail-fast: false
+#      matrix:
+#        win_arch: ['x86', 'x64']
+#    runs-on: windows-latest
+#    steps:
+#      - name: Checkout repository
+#        uses: actions/checkout@v4
+#        with:
+#          submodules: recursive
+#
+#      - name: Setup Python 3.11
+#        uses: actions/setup-python@v5
+#        with:
+#          python-version: "3.11"
+#
+#      - name: Create virtual environment
+#        run: |
+#          python -m venv .venv
+#          call .venv\Scripts\activate.bat
+#          python -m pip install --upgrade setuptools pip build
+#          python -m pip install -r ./os_specific/windows/requirements.txt
+#        shell: cmd
+#
+#      - name: Download Inno Setup installer
+#        run: |
+#          Invoke-WebRequest -Uri https://files.jrsoftware.org/is/6/innosetup-6.4.2.exe -OutFile inno-setup.exe
+#
+#      - name: Install Inno Setup
+#        run: |
+#          .\inno-setup.exe /SILENT
+#
+#      - name: Add Inno Setup to PATH
+#        run: |
+#          $env:PATH += ";C:\Program Files (x86)\Inno Setup 6"
+#
+#      - name: Build frozen Python application
+#        run: |
+#          .\win_automator.bat build app
+#          .\win_automator.bat build inno_setup_ci
+#
+#        shell: powershell
+#
+#      - name: Compile .iss file
+#        run: |
+#          iscc os_specific/windows/inno_setup/setup_${{ matrix.win_arch }}.iss
+#
+#      - name: Create portable installation
+#        run: |
+#          Compress-Archive -Path ./dist/exe.win-amd64-3.11/* -DestinationPath ./os_specific/dist/PyMOL_Open_source_v3.1.0.4+1_${{ matrix.win_arch }}_portable.zip
+#        shell: powershell
+#
+#      - name: Upload artifact
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: Open-Source-PyMOL-Windows-${{ matrix.win_arch }}-Setup
+#          path: ./os_specific/dist/*
+#  # --- end
+#
+#  # ----- macOS build section
+#  build-macos:
+#    strategy:
+#      fail-fast: false
+#      matrix:
+#        # macos-13 is unsupported due to a bug in the `create-dmg` action
+#        os: [ macos-14 ]
+#    runs-on: ${{ matrix.os }}
+#    steps:
+#      - name: Checkout repository
+#        uses: actions/checkout@v4
+#        with:
+#          submodules: recursive
+#
+#      - name: Setup Python 3.11
+#        uses: actions/setup-python@v5
+#        with:
+#          python-version: "3.11"
+#
+#      - name: Create virtual environment
+#        run: |
+#          python -m venv .venv
+#          source .venv/bin/activate
+#          python -m pip install wheel setuptools
+#          python -m pip install -r ./os_specific/macos/requirements.txt
+#
+#      - name: Build app package
+#        run: |
+#          chmod +x ./automator.sh
+#          ./automator.sh build app
+#
+#      - name: Rename app package
+#        run: mv os_specific/macos/build/open_source_pymol-3.1.0.4+1.app dist/Open-Source-PyMOL-3.1.0.4+1.app
+#
+#      - name: Ensure no other process is using the DMG
+#        run: |
+#          hdiutil detach /Volumes/Open-Source-PyMOL || true
+#
+#      - name: Build DMG with retry
+#        uses: urban233/create-dmg-actions@v0.0.2
+#        with:
+#          dmg_name: 'Open-Source-PyMOL'
+#          src_dir: 'dist/Open-Source-PyMOL-3.1.0.4+1.app'
+#          bg_filepath: 'os_specific/macos/dmg/bg.png'
+#        env:
+#          RETRIES: 3
+#          RETRY_DELAY: 10
+#
+#      - name: Upload artifact
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: Open-Source-PyMOL-macOS-${{ matrix.os }}-Setup
+#          path: ./*.dmg
+#  # --- end
+#
+#  # ----- GNU Linux build section
+#  build-gnu-linux:
+#    runs-on: ubuntu-22.04
+#    steps:
+#      - name: Checkout repository
+#        uses: actions/checkout@v4
+#        with:
+#          submodules: recursive
+#
+#      - name: Setup Python 3.11
+#        uses: actions/setup-python@v5
+#        with:
+#          python-version: "3.11"
+#
+#      - name: Create virtual environment
+#        run: |
+#          python -m venv .venv
+#          source .venv/bin/activate
+#          python -m pip install wheel setuptools
+#          python -m pip install -r ./os_specific/linux/requirements.txt
+#
+#      - name: Build app package
+#        run: |
+#          chmod +x ./automator.sh
+#          ./automator.sh build app
+#
+#      - name: Build tar.gz portable installation
+#        run: |
+#          mkdir -p packaged/build/Open-Source-PyMOL-3.1.0.4+1
+#          cp -r ./dist/exe.linux*/* packaged/build/Open-Source-PyMOL-3.1.0.4+1/
+#          mkdir -p packaged/bin
+#          tar czvf packaged/bin/Open-Source-PyMOL-3.1.0.4+1.tar.gz packaged/build/Open-Source-PyMOL-3.1.0.4+1
+#          rm -r packaged/build
+#
+#      - name: Prepare packaging environment
+#        run: |
+#          sudo apt install rpm -y
+#          sudo gem install fpm
+#          mkdir -p package-root/opt/Open-Source-PyMOL-3.1.0.4+1
+#          cp -r ./dist/exe.linux*/* package-root/opt/Open-Source-PyMOL-3.1.0.4+1/
+#          mkdir -p package-root/usr/bin
+#          ln -s /opt/Open-Source-PyMOL-3.1.0.4+1/Open-Source-PyMOL package-root/usr/bin/Open-Source-PyMOL
+#          mkdir -p package-root/usr/share/applications
+#          cp os_specific/linux/open-source-pymol.desktop package-root/usr/share/applications
+#
+#      - name: Build .deb package
+#        run: |
+#          fpm -s dir -t deb \
+#          -n open-source-pymol \
+#          -v 3.1.0.4+1 \
+#          -a amd64 \
+#          -C package-root \
+#          --description "PyMOL installation for debian-based distros" \
+#          --license "BSD-3-Clause" \
+#          --maintainer "Martin Urban <martin.urban@studmail.w-hs.de>"
+#
+#      - name: Build .rpm package
+#        run: |
+#          fpm -s dir -t rpm \
+#          -n open-source-pymol \
+#          -v 3.1.0.4+1 \
+#          -a amd64 \
+#          -C package-root \
+#          --description "PyMOL installation for red-hat-based distros" \
+#          --license "BSD-3-Clause" \
+#          --maintainer "Martin Urban <martin.urban@studmail.w-hs.de>"
+#
+#      - name: Upload artifact
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: Open-Source-PyMOL-GNU-Linux-x86_64-Setup
+#          path: |
+#            packaged/bin/*.tar.gz
+#            *.deb
+#            *.rpm
+#  # --- end
