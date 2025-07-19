@@ -1,4 +1,4 @@
-# Unofficial PyMOL(TM) Setup
+# Custom open-source PyMOL(TM) for PySSA
 [![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-blue.svg)](https://GitHub.com/kullik01/pymol-open-source-setup/graphs/commit-activity)
 [![Python Version](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
@@ -10,18 +10,11 @@
 ![macOS](https://img.shields.io/badge/mac%20os-000000?style=for-the-badge&logo=macos&logoColor=F0F0F0)
 ![Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)
 
-This repository offers **unofficial** setups/packages for the open-source version of PyMOL(TM)
-for **all major** operating systems.
-
-## <img src='https://github.com/primer/octicons/blob/main/icons/download-24.svg' width='32'/> [Quick Installation](https://kullik01.github.io/pymol-open-source-setup/)
+This repository is based on the kullik01/pymol-open-source-setup PyMOL setup.
+It contains certain changes that are necessary for working well together with PySSA.
 
 ## Contents of this document
 * [About PyMOL](#About-PyMOL)
-* [Contents of this repository](#Contents-of-this-repository)
-    * [Scripts](#Scripts)
-* [From source](#From-source)
-    * [Prerequisites](#Prerequisites)
-    * [Step-by-step guide](#Step-by-step-guide)
 * [License](#License)
 * [Acknowledgements](#Acknowledgements)
 <!--* [References and useful links](#References-and-useful-links) -->
@@ -30,74 +23,6 @@ for **all major** operating systems.
 [PyMOL™](https://pymol.org/) is a powerful visualization software for rendering and animating 3D molecular structures. PyMOL is a trademark of Schrödinger, LLC.
 
 Please note that the files provided here are **unofficial**. They are informal, unrecognized, and unsupported, offered for testing and evaluation purposes only. No warranty or liability is provided, and the software is made available "as-is."
-
-## Contents of this repository
-"Insert some more information here"
-
-## From source
-The following information is about building a platform dependent package/setup from source.
-
-### Prerequisites for Windows
-- Inno Setup compiler 6
-  - Install location must be: `C:\Program Files (x86)\Inno Setup 6\ISCC.exe`
-
-### Prerequisites for Linux
-- Ruby (**only** if fpm is used for packaging)
-  - apt (Debian or Ubuntu): `sudo apt-get install ruby-full`
-  - yum (CentOS, Fedora, or RHEL): `sudo yum install ruby`
-
-### Step-by-step guide
-1. Create a new Python virtual environment
-2. Install build dependencies using the requirements.txt of your platform
-3. Build the app package:
-
-#### Windows
-If you are on Windows run:
-```shell
-.\win_automator.bat build app
-```
-```shell
-.\win_automator.bat build inno_setup
-```
-
-#### macOS
-If you are on macOS:
-```shell
-chmod +x ./automator.sh && ./automator.sh build app
-```
-To build the DMG use a tool like [create-dmg](https://github.com/create-dmg/create-dmg) or fork the repository 
-and run the GitHub action build_app.yaml.
-
-#### Linux
-If you are on Linux:
-```shell
-chmod +x ./automator.sh && ./automator.sh build app
-```
-To build the tar.gz run:
-```shell
-mkdir -p packaged/build/Open-Source-PyMOL-<version-number>
-cp -r ./dist/exe.linux*/* packaged/build/Open-Source-PyMOL-<version-number>/
-mkdir -p packaged/bin
-tar czvf packaged/bin/Open-Source-PyMOL-<version-number>.tar.gz packaged/build/Open-Source-PyMOL-<version-number>
-```
-If you want to build a .deb or .rpm package, you could use the Ruby gem called fpm:
-```shell
-sudo gem install fpm
-mkdir -p package-root/opt/Open-Source-PyMOL-<version-number>
-cp -r ./dist/exe.linux*/* package-root/opt/Open-Source-PyMOL-<version-number>/
-mkdir -p package-root/usr/bin
-ln -s /opt/Open-Source-PyMOL-<version-number>/Open-Source-PyMOL package-root/usr/bin/Open-Source-PyMOL
-mkdir -p package-root/usr/share/applications
-cp os_specific/linux/open-source-pymol.desktop package-root/usr/share/applications
-
-fpm -s dir -t deb \
--n open-source-pymol \
--v <version-number> \
--a amd64 \
--C package-root \
---description "PyMOL installation for debian-based distros" \
---license "BSD-3-Clause" \
-```
 
 ## License
 Copyright (c) [Schrodinger, LLC](https://www.schrodinger.com/)

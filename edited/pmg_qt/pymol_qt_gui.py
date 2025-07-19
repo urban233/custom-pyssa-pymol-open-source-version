@@ -1288,8 +1288,18 @@ def execapp():
         scale = window.pymolwidget.fb_scale
         viewport(scale * options.win_x, scale * options.win_y)
 
+    # PySSA specific
+    window.menubar.hide()
+
     # load plugins
     if options.plugins:
         window.initializePlugins()
 
     app.exec()
+
+
+def pyssa_toggle_menu_bar():
+    if window.menubar.isVisible():
+        window.menubar.hide()
+    else:
+        window.menubar.show()

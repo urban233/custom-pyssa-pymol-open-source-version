@@ -45,6 +45,12 @@ class BuildExe:
     tmp_edited_init_py_filepath = pathlib.Path(
       const.PROJECT_ROOT_DIR / "edited/pymol", "__init__.py"
     )
+    tmp_edited_startup_wrapper_py_filepath = pathlib.Path(
+      const.PROJECT_ROOT_DIR / "edited/pymol", "startup_wrapper.py"
+    )
+    tmp_edited_controlling_py_filepath = pathlib.Path(
+      const.PROJECT_ROOT_DIR / "edited/pymol", "controlling.py"
+    )
     tmp_alternative_logo_filepath = pathlib.Path(
       const.PROJECT_ROOT_DIR / "alternative_design" / "alt_logo.png"
     )
@@ -64,6 +70,14 @@ class BuildExe:
     shutil.copy(
       tmp_edited_init_py_filepath,
       pathlib.Path(const.PYMOL_PACKAGE_DIR / "__init__.py")
+    )
+    shutil.copy(
+      tmp_edited_startup_wrapper_py_filepath,
+      pathlib.Path(const.PYMOL_PACKAGE_DIR / "startup_wrapper.py")
+    )
+    shutil.copy(
+      tmp_edited_controlling_py_filepath,
+      pathlib.Path(const.PYMOL_PACKAGE_DIR / "controlling.py")
     )
     shutil.copy(
       tmp_alternative_logo_filepath,

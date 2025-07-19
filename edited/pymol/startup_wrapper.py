@@ -3,4 +3,4 @@ import pymol
 
 
 if __name__ == '__main__':
-  pymol.launch(*sys.argv[1:])
+  pymol.launch(sys.argv)
